@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air Quality Predictor</title>
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="bg-animated"></div>
+
+    <div class="container py-5">
+        <!-- Header -->
+        <header class="text-center text-light mb-5">
+            <h1 class="display-6">Air Quality Predictor</h1>
+            <p class="lead">Predict CO (Carbon Monoxide) using sensor readings</p>
+        </header>
+
+        <!-- Form Card -->
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card glass p-4">
+                    <form id="predict-form">
+                        <div class="row" id="feature-inputs">
+                            <!-- Feature inputs will be dynamically rendered here -->
+                        </div>
+
+                        <div class="d-flex gap-2 mt-3 flex-wrap" style="justify-content: space-around;">
+                            <label class="btn btn-outline-light mb-0">
+                                Upload CSV
+                                <input type="file" id="csv-file" hidden accept=".csv">
+                            </label>
+                            <button id="example-btn" type="button" class="btn btn-outline-light mb-0">Fill Example</button>
+                            <button type="submit" class="btn btn-outline-light mb-0">Predict</button>
+                        </div>
+                    </form>
+
+                    <!-- Result Section -->
+                    <div class="result mt-4">
+                        <h4 class="text-light">Result</h4>
+                        <div id="result-card" class="p-3 rounded bg-dark text-light">—</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center text-muted mt-4 text-light">
+            Made with ❤️ — change the target or features in <code>train_model.py</code>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        // Default features in case server does not provide
+        const DEFAULT_FEATURES = [
+            'PT08.S1(CO)','PT08.S2(NMHC)','PT08.S3(NOx)','PT08.S4(NO2)','PT08.S5(O3)',
+            'NMHC(GT)','C6H6(GT)','NOx(GT)','NO2(GT)','T','RH','AH','hour','dayofweek','month'
+        ];
+
+        // Fetch features from server-rendered variable or fallback
+        const FEATURES = window.features || DEFAULT_FEATURES;
+
+        // Function to render input fields dynamically
+        function renderFeatureInputs(features) {
+            const container = document.getElementById('feature-inputs');
+            container.innerHTML = ''; // clear existing
+
+            features.forEach(feature => {
+                const col = document.createElement('div');
+                col.className = 'col-md-6 mb-3';
+                col.innerHTML = `
+                    <label class="form-label text-light">${feature}</label>
+                    <input type="number" step="any" class="form-control" name="${feature}" placeholder="Enter ${feature}">
+                `;
+                container.appendChild(col);
+            });
+        }
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', () => {
+            renderFeatureInputs(FEATURES);
+
+            // Example button functionality
+            document.getElementById('example-btn').addEventListener('click', () => {
+                FEATURES.forEach(f => {
+                    const input = document.querySelector(`input[name="${f}"]`);
+                    if(input) input.value = (Math.random() * 10).toFixed(2); // example random values
+                });
+            });
+
+            // Form submission
+            document.getElementById('predict-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const data = {};
+                FEATURES.forEach(f => {
+                    const inp = document.querySelector(`input[name="${f}"]`);
+                    let val = inp && inp.value ? parseFloat(inp.value) : 0;
+
+                    // Convert datetime/categorical features to integers
+                    if (f === 'hour' || f === 'dayofweek' || f === 'month') {
+                        val = Math.round(val);
+                    }
+                    data[f] = val;
+                });
+
+                try {
+                    const res = await axios.post('/predict', data);
+                    document.getElementById('result-card').textContent = res.data.result || 'No result';
+                } catch (err) {
+                    document.getElementById('result-card').textContent = 'Error predicting. Try again.';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+
+
+
